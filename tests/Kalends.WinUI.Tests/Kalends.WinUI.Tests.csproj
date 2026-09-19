@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Kalends.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Compile Include="..\..\src\Kalends.WinUI\Public\KalendsColor.cs" Link="Linked\KalendsColor.cs" />
+    <Compile Include="..\..\src\Kalends.WinUI\Public\IKalendsEvent.cs" Link="Linked\IKalendsEvent.cs" />
+    <Compile Include="..\..\src\Kalends.WinUI\Public\KalendsEvent.cs" Link="Linked\KalendsEvent.cs" />
+    <Compile Include="..\..\src\Kalends.WinUI\Public\KalendsDate.cs" Link="Linked\KalendsDate.cs" />
+    <Compile Include="..\..\src\Kalends.WinUI\Public\EventLayoutCalculator.cs" Link="Linked\EventLayoutCalculator.cs" />
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

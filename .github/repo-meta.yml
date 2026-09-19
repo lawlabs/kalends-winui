@@ -1,0 +1,7 @@
+description: WinUI 3 calendar views with event layout and drag-and-drop.
+homepage: ""
+topics:
+  - winui3
+  - calendar
+  - csharp
+license: MIT

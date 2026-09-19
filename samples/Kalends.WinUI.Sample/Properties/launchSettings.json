@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Kalends.WinUI.Sample (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Kalends.WinUI.Sample (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

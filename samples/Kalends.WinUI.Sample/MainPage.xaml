@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Kalends_WinUI_Sample.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:kalends="using:Kalends"
+    Language="en-US">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Padding="20,12" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Content="Today" Click="Today_Click" AutomationProperties.AutomationId="Today" />
+                <Button Click="Previous_Click" AutomationProperties.Name="Previous period">
+                    <FontIcon Glyph="&#xE76B;" FontSize="12" />
+                </Button>
+                <Button Click="Next_Click" AutomationProperties.Name="Next period">
+                    <FontIcon Glyph="&#xE76C;" FontSize="12" />
+                </Button>
+            </StackPanel>
+            <TextBlock x:Name="PeriodTitle" Grid.Column="1" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <SelectorBar x:Name="ViewSelector" Grid.Column="2" SelectionChanged="View_Changed">
+                <SelectorBarItem Text="Agenda" Tag="Agenda" />
+                <SelectorBarItem Text="Day" Tag="Day" />
+                <SelectorBarItem Text="Week" Tag="Week" IsSelected="True" />
+                <SelectorBarItem Text="Month" Tag="Month" />
+                <SelectorBarItem Text="Year" Tag="Year" />
+            </SelectorBar>
+        </Grid>
+        <kalends:KalendsView x:Name="Calendar" Grid.Row="1" />
+        <TextBlock x:Name="StatusText" Grid.Row="2" Margin="20,8" FontSize="12" Opacity="0.7" Text="Double-click empty time to create an event." />
+    </Grid>
+</Page>
