@@ -27,6 +27,8 @@ public sealed partial class MainPage : Page
             }
             StatusText.Text = "Edit requested: " + e.Event.Title;
         };
+        Calendar.SelectionChanged += (_, e) =>
+            StatusText.Text = e.Event is null ? "Selection cleared" : "Selected: " + e.Event.Title;
         Calendar.TimeChanged += (_, e) =>
         {
             if (e.Event is KalendsEvent item)
@@ -45,6 +47,12 @@ public sealed partial class MainPage : Page
             copy.Title = item.Title + " copy";
             _events.Add(copy);
             Update();
+        };
+        Calendar.DeleteRequested += (_, e) =>
+        {
+            if (e.Event is not KalendsEvent item || !_events.Remove(item)) return;
+            Calendar.Refresh();
+            StatusText.Text = "Deleted: " + item.Title;
         };
         Calendar.NavigateRequested += (_, e) => { _date = e.Date; _mode = e.Mode; SyncSelector(); Update(true); };
         Calendar.StatusChanged += (_, text) => StatusText.Text = text;

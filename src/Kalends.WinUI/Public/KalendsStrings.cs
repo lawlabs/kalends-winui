@@ -10,7 +10,9 @@ public sealed class KalendsStrings
     public string AllDay { get; init; } = "All day";
     public string AllDayLabel { get; init; } = "ALL\nDAY";
     public string OpenEvent { get; init; } = "Open event";
+    public string Selected { get; init; } = "Selected";
     public string DuplicateEvent { get; init; } = "Duplicate";
+    public string DeleteEvent { get; init; } = "Delete";
     public string Today { get; init; } = "Today";
     public string MoreEvents { get; init; } = "More {0}";
     public string EmptyTitle { get; init; } = "Free time ahead";

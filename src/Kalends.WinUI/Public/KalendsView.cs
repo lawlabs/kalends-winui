@@ -46,6 +46,10 @@ public sealed partial class KalendsView : UserControl
         nameof(Events), typeof(object), typeof(KalendsView),
         new PropertyMetadata(Array.Empty<IKalendsEvent>(), OnVisualPropertyChanged));
 
+    public static readonly DependencyProperty SelectedEventIdProperty = DependencyProperty.Register(
+        nameof(SelectedEventId), typeof(string), typeof(KalendsView),
+        new PropertyMetadata(null, OnSelectedEventIdChanged));
+
     public DateTime Date
     {
         get => (DateTime)GetValue(DateProperty);
@@ -89,6 +93,16 @@ public sealed partial class KalendsView : UserControl
         set => SetValue(EventsProperty, value);
     }
 
+    /// <summary>ID of the selected event, or null when no event is selected.</summary>
+    public string? SelectedEventId
+    {
+        get => (string?)GetValue(SelectedEventIdProperty);
+        set => SetValue(SelectedEventIdProperty, value);
+    }
+
+    /// <summary>The selected event in the current host-owned collection, if present.</summary>
+    public IKalendsEvent? SelectedEvent => SelectedEventId is { } id ? Events.FirstOrDefault(item => item.Id == id) : null;
+
     public CultureInfo Culture { get; set; } = CultureInfo.CurrentCulture;
     public DayOfWeek? FirstDayOfWeek { get; set; }
     public KalendsStrings Strings { get; set; } = KalendsStrings.Default;
@@ -96,15 +110,18 @@ public sealed partial class KalendsView : UserControl
     public Func<KalendsEventDraft, IKalendsEvent>? CreateEvent { get; set; }
 
     public event EventHandler<KalendsEventRequestEventArgs>? EditRequested;
+    public event EventHandler<KalendsSelectionChangedEventArgs>? SelectionChanged;
     public event EventHandler<KalendsTimeChangedEventArgs>? TimeChanged;
     public event EventHandler<KalendsEventRequestEventArgs>? DuplicateRequested;
+    /// <summary>Raised when deletion is requested. The host owns confirmation and removal.</summary>
+    public event EventHandler<KalendsEventRequestEventArgs>? DeleteRequested;
     public event EventHandler<KalendsNavigateEventArgs>? NavigateRequested;
     public event EventHandler<string>? StatusChanged;
 
     private readonly Grid _root = new();
     private readonly DispatcherTimer _resizeTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromMinutes(1) };
-    private readonly List<EventTile> _tiles = [];
+    private readonly List<(Button Button, IKalendsEvent Event)> _eventButtons = [];
     private readonly List<(FrameworkElement Element, DateTime Day)> _dateTargets = [];
     private ScrollViewer? _timeScroll;
     private Canvas? _canvas;
@@ -134,9 +151,16 @@ public sealed partial class KalendsView : UserControl
         Unloaded += (_, _) => { _clock.Stop(); _resizeTimer.Stop(); _cancelGesture?.Invoke(); };
         KeyDown += (_, e) =>
         {
-            if (e.Key == VirtualKey.Escape && _gesture)
+            if (e.Key == VirtualKey.Escape)
             {
-                _cancelGesture?.Invoke();
+                if (_gesture) _cancelGesture?.Invoke();
+                else if (SelectedEventId != null) SelectedEventId = null;
+                else return;
+                e.Handled = true;
+            }
+            else if (e.Key == VirtualKey.Delete && !_gesture && SelectedEvent is { IsReadOnly: false } selected)
+            {
+                RequestDelete(selected);
                 e.Handled = true;
             }
         };
@@ -224,7 +248,7 @@ public sealed partial class KalendsView : UserControl
         VerticalAlignment = VerticalAlignment.Center
     };
 
-    private Button ActionButton(object content, Action action, string? name = null)
+    private Button ActionButton(object content, Action? action, string? name = null)
     {
         var button = new Button
         {
@@ -235,7 +259,7 @@ public sealed partial class KalendsView : UserControl
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        button.Click += (_, _) => action();
+        if (action != null) button.Click += (_, _) => action();
         if (name != null) AutomationProperties.SetName(button, name);
         return button;
     }
@@ -265,6 +289,7 @@ public sealed partial class KalendsView : UserControl
 
     private void RequestEdit(IKalendsEvent item) => EditRequested?.Invoke(this, new KalendsEventRequestEventArgs(item));
     private void RequestDuplicate(IKalendsEvent item) => DuplicateRequested?.Invoke(this, new KalendsEventRequestEventArgs(item));
+    private void RequestDelete(IKalendsEvent item) => DeleteRequested?.Invoke(this, new KalendsEventRequestEventArgs(item));
     private void RequestTime(IKalendsEvent item, DateTime start, DateTime end) =>
         TimeChanged?.Invoke(this, new KalendsTimeChangedEventArgs(item, start, end));
     private void RequestNavigate(DateTime date, KalendsMode mode) =>
@@ -275,11 +300,81 @@ public sealed partial class KalendsView : UserControl
         if (sender is KalendsView view && view.IsLoaded) view.Refresh();
     }
 
+    private static void OnSelectedEventIdChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is not KalendsView view) return;
+        view.UpdateSelectionVisuals();
+        view.SelectionChanged?.Invoke(view, new KalendsSelectionChangedEventArgs(view.SelectedEvent));
+    }
+
+    private void SelectEvent(IKalendsEvent item) => SelectedEventId = item.Id;
+
+    private void RegisterEventButton(Button button, IKalendsEvent item)
+    {
+        _eventButtons.Add((button, item));
+        button.Click += (_, _) =>
+        {
+            button.Focus(FocusState.Programmatic);
+            SelectEvent(item);
+        };
+        button.DoubleTapped += (_, e) =>
+        {
+            SelectEvent(item);
+            RequestEdit(item);
+            e.Handled = true;
+        };
+        button.GotFocus += (_, _) =>
+        {
+            if (button.FocusState == FocusState.Keyboard) SelectEvent(item);
+        };
+        button.AddHandler(KeyDownEvent, new KeyEventHandler((_, e) =>
+        {
+            if (e.Key != VirtualKey.Enter) return;
+            SelectEvent(item);
+            RequestEdit(item);
+            e.Handled = true;
+        }), true);
+        var menu = new MenuFlyout();
+        menu.Opening += (_, _) => SelectEvent(item);
+        var edit = new MenuFlyoutItem { Text = Strings.OpenEvent, Icon = new SymbolIcon(Symbol.Edit) };
+        edit.Click += (_, _) => RequestEdit(item);
+        menu.Items.Add(edit);
+        if (!item.IsReadOnly)
+        {
+            var duplicate = new MenuFlyoutItem { Text = Strings.DuplicateEvent, Icon = new SymbolIcon(Symbol.Copy) };
+            duplicate.Click += (_, _) => RequestDuplicate(item);
+            menu.Items.Add(duplicate);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            var delete = new MenuFlyoutItem { Text = Strings.DeleteEvent, Icon = new SymbolIcon(Symbol.Delete) };
+            delete.Click += (_, _) => RequestDelete(item);
+            menu.Items.Add(delete);
+        }
+        button.ContextFlyout = menu;
+        UpdateSelectionVisual(button, item);
+    }
+
+    private void UpdateSelectionVisuals()
+    {
+        foreach (var (button, item) in _eventButtons) UpdateSelectionVisual(button, item);
+    }
+
+    private void UpdateSelectionVisual(Button button, IKalendsEvent item)
+    {
+        bool selected = SelectedEventId == item.Id;
+        var border = selected ? Brush("Brand") : button is EventTile ? EventInk(item.Color) : Brush("Line");
+        button.BorderBrush = border;
+        button.BorderThickness = button is EventTile
+            ? selected ? new Thickness(3, 2, 2, 2) : new Thickness(3, 0, 0, 0)
+            : selected ? new Thickness(2) : new Thickness(0);
+        AutomationProperties.SetHelpText(button, selected ? Strings.Selected : string.Empty);
+    }
+
     public void Refresh(bool resetScroll = false)
     {
         if (_gesture || ActualWidth < 50) return;
-        var focusId = XamlRoot != null && FocusManager.GetFocusedElement(XamlRoot) is EventTile focused ? focused.Tag : null;
-        _tiles.Clear();
+        var focusedButton = XamlRoot != null ? FocusManager.GetFocusedElement(XamlRoot) as Button : null;
+        var focusId = _eventButtons.FirstOrDefault(entry => ReferenceEquals(entry.Button, focusedButton)).Event?.Id;
+        _eventButtons.Clear();
         _dateTargets.Clear();
         if (resetScroll) _scrollOffset = 8 * HourHeight;
         _timeScroll = null;
@@ -306,8 +401,9 @@ public sealed partial class KalendsView : UserControl
                     break;
             }
         }
+        if (SelectedEventId != null && SelectedEvent is null) SelectedEventId = null;
         if (focusId != null)
-            DispatcherQueue.TryEnqueue(() => _tiles.FirstOrDefault(t => Equals(t.Tag, focusId))?.Focus(FocusState.Keyboard));
+            DispatcherQueue.TryEnqueue(() => _eventButtons.FirstOrDefault(entry => entry.Event.Id == focusId).Button?.Focus(FocusState.Programmatic));
     }
 
     private void RenderTime()
@@ -524,7 +620,17 @@ public sealed partial class KalendsView : UserControl
             if (Math.Abs(point.Y - originY) >= 5) moved = true;
             if (moved) Update(point.Y);
             Finish();
-            RequestEdit(Draft(start, end, false));
+            SelectedEventId = null;
+            if (moved) RequestEdit(Draft(start, end, false));
+            e.Handled = true;
+        };
+        backdrop.DoubleTapped += (_, e) =>
+        {
+            var point = e.GetPosition(canvas);
+            var start = day.AddMinutes(TimeSelection.SnapMinute(point.Y, HourHeight, Metrics.SnapMinutes, true));
+            Finish();
+            SelectedEventId = null;
+            RequestEdit(Draft(start, start.AddHours(1), false));
             e.Handled = true;
         };
         backdrop.PointerCanceled += (_, _) => Finish();
@@ -558,7 +664,6 @@ public sealed partial class KalendsView : UserControl
             MinWidth = 0,
             MinHeight = 0
         };
-        _tiles.Add(button);
         if (!compact)
         {
             if ((item.End - item.Start).TotalMinutes < 45)
@@ -571,25 +676,12 @@ public sealed partial class KalendsView : UserControl
         {
             button.Resources[$"ButtonBackground{state}"] = fill;
             button.Resources[$"ButtonForeground{state}"] = ink;
-            button.Resources[$"ButtonBorderBrush{state}"] = ink;
         }
-        button.Click += (_, _) => RequestEdit(item);
-        button.DoubleTapped += (_, e) => e.Handled = true;
+        RegisterEventButton(button, item);
         var when = item.IsAllDay ? Strings.AllDay : $"{FormatDateTime(item.Start)} – {FormatDateTime(item.End)}";
         AutomationProperties.SetName(button, $"{item.Title}, {when}");
         AutomationProperties.SetAutomationId(button, "Event_" + item.Id);
         ToolTipService.SetToolTip(button, string.Format(Culture, Strings.EventTooltip, item.Title, when, item.Subtitle ?? ""));
-        var menu = new MenuFlyout();
-        var edit = new MenuFlyoutItem { Text = Strings.OpenEvent, Icon = new SymbolIcon(Symbol.Edit) };
-        edit.Click += (_, _) => RequestEdit(item);
-        menu.Items.Add(edit);
-        if (!item.IsReadOnly)
-        {
-            var duplicate = new MenuFlyoutItem { Text = Strings.DuplicateEvent, Icon = new SymbolIcon(Symbol.Copy) };
-            duplicate.Click += (_, _) => RequestDuplicate(item);
-            menu.Items.Add(duplicate);
-        }
-        button.ContextFlyout = menu;
         if (compact && !item.IsReadOnly) ConfigureCompactGesture(button, item);
         button.KeyDown += (_, e) =>
         {
@@ -691,7 +783,11 @@ public sealed partial class KalendsView : UserControl
                 var start = targetDay.Value + item.Start.TimeOfDay;
                 if (start != item.Start) RequestTime(item, start, start + (item.End - item.Start));
             }
-            else if (!moved) RequestEdit(item);
+            else if (!moved)
+            {
+                tile.Focus(FocusState.Programmatic);
+                SelectEvent(item);
+            }
             e.Handled = true;
         };
         tile.PointerCanceled += (_, _) => { if (active) Cleanup(); };
@@ -794,7 +890,11 @@ public sealed partial class KalendsView : UserControl
                 if (nextStart != item.Start || nextEnd != item.End) RequestTime(item, nextStart, nextEnd);
                 else Refresh();
             }
-            else RequestEdit(item);
+            else
+            {
+                tile.Focus(FocusState.Programmatic);
+                SelectEvent(item);
+            }
             e.Handled = true;
         };
         tile.PointerCanceled += (_, _) => Cancel();
@@ -939,7 +1039,10 @@ public sealed partial class KalendsView : UserControl
                 details.Children.Add(Text(item.Title, 14, "Text", true));
                 if (!string.IsNullOrEmpty(item.Subtitle)) details.Children.Add(Text(item.Subtitle, 11, "Muted"));
                 Cell(row, details, 0, 2);
-                section.Children.Add(ActionButton(row, () => RequestEdit(item), item.Title));
+                var button = ActionButton(row, null, item.Title);
+                RegisterEventButton(button, item);
+                AutomationProperties.SetAutomationId(button, "Event_" + item.Id);
+                section.Children.Add(button);
                 count++;
             }
             section.Children.Add(new Border { Height = 1, Background = Brush("Line"), Margin = new Thickness(0, 5, 0, 0) });

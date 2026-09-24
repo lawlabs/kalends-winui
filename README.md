@@ -15,8 +15,10 @@ WinUI 3 calendar views with event layout and drag-and-drop. The host owns storag
 
 - Agenda, day, week, month, and year
 - Overlap lanes for timed events and spanning all-day rows
-- Click empty time for a one-hour draft or drag up/down to select a time range, with 15-minute snap
+- Drag empty time up/down to select a time range, with 15-minute snap; double-click empty time for a one-hour draft
 - Drag events to move them or drag an edge to resize them
+- Select events with one click; double-click or press Enter to request editing, and press Esc to clear the selection
+- Press Delete on a selected event or use its context menu to request deletion
 - Culture-aware week start, locale-formatted dates, light / dark / high contrast
 - Host-owned events through `IKalendsEvent` — no providers, sync, or storage types
 
@@ -50,10 +52,16 @@ xmlns:kalends="using:Kalends"
 Calendar.Events = events;
 Calendar.Date = DateTime.Today;
 Calendar.EditRequested += (_, e) => OpenEditor(e.Event);
+Calendar.SelectionChanged += (_, e) => ShowSelection(e.Event);
 Calendar.TimeChanged += (_, e) => SaveMove(e.Event, e.Start, e.End);
+Calendar.DeleteRequested += (_, e) => DeleteEvent(e.Event);
 ```
 
 Call `Calendar.Refresh()` after changing the host-owned event collection so the view displays the changes immediately.
+
+`Calendar.SelectedEventId` is a bindable dependency property. The host can set it to an event ID or `null`, read `Calendar.SelectedEvent` to get the corresponding item, and listen to `SelectionChanged`. Selection is retained across view refreshes and cleared when the selected event leaves the host's event collection.
+
+The library supplies the event context menu and raises `DeleteRequested` for the Delete key or menu command. The host decides whether to confirm and remove the event, then calls `Refresh()`. Read-only events do not offer deletion.
 
 Your event type implements `IKalendsEvent` (`Id`, `Title`, `Start`, `End`, `IsAllDay`, `Color`, `IsReadOnly`). `End` is exclusive.
 

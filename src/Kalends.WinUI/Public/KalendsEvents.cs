@@ -9,6 +9,12 @@ public sealed class KalendsEventRequestEventArgs : EventArgs
     public IKalendsEvent Event { get; }
 }
 
+public sealed class KalendsSelectionChangedEventArgs : EventArgs
+{
+    public KalendsSelectionChangedEventArgs(IKalendsEvent? item) => Event = item;
+    public IKalendsEvent? Event { get; }
+}
+
 public sealed class KalendsTimeChangedEventArgs : EventArgs
 {
     public KalendsTimeChangedEventArgs(IKalendsEvent item, DateTime start, DateTime end)
