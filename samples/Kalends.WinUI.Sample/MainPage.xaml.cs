@@ -20,7 +20,11 @@ public sealed partial class MainPage : Page
         Calendar.CreateEvent = draft => new KalendsEvent { Start = draft.Start, End = draft.End, IsAllDay = draft.IsAllDay, Color = SampleEvents.Work };
         Calendar.EditRequested += (_, e) =>
         {
-            if (e.Event is KalendsEvent item && !_events.Contains(item)) _events.Add(item);
+            if (e.Event is KalendsEvent item && !_events.Contains(item))
+            {
+                _events.Add(item);
+                Calendar.Refresh();
+            }
             StatusText.Text = "Edit requested: " + e.Event.Title;
         };
         Calendar.TimeChanged += (_, e) =>

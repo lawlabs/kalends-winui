@@ -33,6 +33,7 @@ internal static class KalendsTheme
         Add(dictionary, "Line", line);
         Add(dictionary, "SubtleLine", subtle);
         Add(dictionary, "Brand", brand);
+        Add(dictionary, "Selection", (brand & 0x00FFFFFFu) | 0x40000000u);
         Add(dictionary, "OnBrand", onBrand);
         Add(dictionary, "Today", today);
         Add(dictionary, "Weekend", weekend);
@@ -55,6 +56,7 @@ internal static class KalendsTheme
         Set(dictionary, "Line", ink);
         Set(dictionary, "SubtleLine", ink);
         Set(dictionary, "Brand", accent);
+        Set(dictionary, "Selection", window);
         Set(dictionary, "OnBrand", onAccent);
         Set(dictionary, "Today", window);
         Set(dictionary, "Weekend", window);

@@ -15,7 +15,8 @@ WinUI 3 calendar views with event layout and drag-and-drop. The host owns storag
 
 - Agenda, day, week, month, and year
 - Overlap lanes for timed events and spanning all-day rows
-- Drag to move, edge drag to resize, 15-minute snap
+- Click empty time for a one-hour draft or drag up/down to select a time range, with 15-minute snap
+- Drag events to move them or drag an edge to resize them
 - Culture-aware week start, locale-formatted dates, light / dark / high contrast
 - Host-owned events through `IKalendsEvent` — no providers, sync, or storage types
 
@@ -52,6 +53,8 @@ Calendar.EditRequested += (_, e) => OpenEditor(e.Event);
 Calendar.TimeChanged += (_, e) => SaveMove(e.Event, e.Start, e.End);
 ```
 
+Call `Calendar.Refresh()` after changing the host-owned event collection so the view displays the changes immediately.
+
 Your event type implements `IKalendsEvent` (`Id`, `Title`, `Start`, `End`, `IsAllDay`, `Color`, `IsReadOnly`). `End` is exclusive.
 
 ## Customization
@@ -63,6 +66,22 @@ Your event type implements `IKalendsEvent` (`Id`, `Title`, `Start`, `End`, `IsAl
 - Override `Kalends*Brush` keys in the application resources
 
 The default path stays two assignments and the event handlers you care about.
+
+### Day header
+
+`ShowDayHeader` controls the weekday and date row in Day mode. It defaults to `false` because the host app may already show the full date above the calendar. Week mode always shows its day headers.
+
+Set it in XAML or change it at runtime; the view refreshes automatically:
+
+```xml
+<kalends:KalendsView x:Name="Calendar" ShowDayHeader="True" />
+```
+
+```csharp
+Calendar.ShowDayHeader = settings.ShowDayHeader;
+```
+
+The host app can expose this value in its own settings if end users need to choose.
 
 ## Sample
 

@@ -36,6 +36,6 @@
             </SelectorBar>
         </Grid>
         <kalends:KalendsView x:Name="Calendar" Grid.Row="1" />
-        <TextBlock x:Name="StatusText" Grid.Row="2" Margin="20,8" FontSize="12" Opacity="0.7" Text="Double-click empty time to create an event." />
+        <TextBlock x:Name="StatusText" Grid.Row="2" Margin="20,8" FontSize="12" Opacity="0.7" Text="Click or drag empty time to create an event." />
     </Grid>
 </Page>

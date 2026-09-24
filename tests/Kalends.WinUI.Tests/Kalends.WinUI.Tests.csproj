@@ -19,6 +19,7 @@
     <Compile Include="..\..\src\Kalends.WinUI\Public\IKalendsEvent.cs" Link="Linked\IKalendsEvent.cs" />
     <Compile Include="..\..\src\Kalends.WinUI\Public\KalendsEvent.cs" Link="Linked\KalendsEvent.cs" />
     <Compile Include="..\..\src\Kalends.WinUI\Public\KalendsDate.cs" Link="Linked\KalendsDate.cs" />
+    <Compile Include="..\..\src\Kalends.WinUI\Internal\TimeSelection.cs" Link="Linked\TimeSelection.cs" />
     <Compile Include="..\..\src\Kalends.WinUI\Public\EventLayoutCalculator.cs" Link="Linked\EventLayoutCalculator.cs" />
     <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
