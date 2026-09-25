@@ -139,7 +139,7 @@ public sealed partial class KalendsView : UserControl
 
     public KalendsView()
     {
-        InitializeComponent();
+        // The view tree is built in code; the empty XAML is not required at runtime.
         Resources.MergedDictionaries.Add(KalendsTheme.Create());
         Content = _root;
         IsTabStop = false;
