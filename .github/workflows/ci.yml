@@ -18,6 +18,7 @@ jobs:
       - name: Build library
         run: dotnet build src/Kalends.WinUI/Kalends.WinUI.csproj -c Release --nologo
       - name: Build sample
-        run: dotnet build samples/Kalends.WinUI.Sample/Kalends.WinUI.Sample.csproj -c Release -p:Platform=x64 --nologo
+        # Compilation does not require the self-contained publish configuration used for trimming.
+        run: dotnet build samples/Kalends.WinUI.Sample/Kalends.WinUI.Sample.csproj -c Release -p:Platform=x64 -p:PublishTrimmed=false --nologo
       - name: Pack
         run: dotnet pack src/Kalends.WinUI/Kalends.WinUI.csproj -c Release --nologo
