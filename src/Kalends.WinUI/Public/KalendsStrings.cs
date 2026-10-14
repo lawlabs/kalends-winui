@@ -14,6 +14,16 @@ public sealed class KalendsStrings
     public string DuplicateEvent { get; init; } = "Duplicate";
     public string DeleteEvent { get; init; } = "Delete";
     public string Today { get; init; } = "Today";
+    public string Weekend { get; init; } = "Day off";
+    public string Holiday { get; init; } = "Public holiday";
+    public string TransferredDayOff { get; init; } = "Transferred day off";
+    public string TransferredWorking { get; init; } = "Working day due to a transfer";
+    public string ShortenedDay { get; init; } = "Shortened working day";
+    public string WeekendMarker { get; init; } = "Off";
+    public string HolidayMarker { get; init; } = "H";
+    public string TransferredDayOffMarker { get; init; } = "↔";
+    public string WorkingDayMarker { get; init; } = "W";
+    public string ShortenedDayMarker { get; init; } = "−1h";
     public string MoreEvents { get; init; } = "More {0}";
     public string EmptyTitle { get; init; } = "Free time ahead";
     public string EmptySearchTitle { get; init; } = "Nothing found";

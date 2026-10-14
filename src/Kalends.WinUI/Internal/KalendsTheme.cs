@@ -37,6 +37,10 @@ internal static class KalendsTheme
         Add(dictionary, "OnBrand", onBrand);
         Add(dictionary, "Today", today);
         Add(dictionary, "Weekend", weekend);
+        Add(dictionary, "WeekendText", muted);
+        Add(dictionary, "DayOff", (now & 0x00FFFFFFu) | 0x18000000u);
+        Add(dictionary, "DayOffText", now);
+        Add(dictionary, "WorkingDayText", brand);
         Add(dictionary, "Text", text);
         Add(dictionary, "Now", now);
         return dictionary;
@@ -60,6 +64,10 @@ internal static class KalendsTheme
         Set(dictionary, "OnBrand", onAccent);
         Set(dictionary, "Today", window);
         Set(dictionary, "Weekend", window);
+        Set(dictionary, "WeekendText", ink);
+        Set(dictionary, "DayOff", window);
+        Set(dictionary, "DayOffText", ink);
+        Set(dictionary, "WorkingDayText", ink);
         Set(dictionary, "Text", ink);
         Set(dictionary, "Now", accent);
         return dictionary;

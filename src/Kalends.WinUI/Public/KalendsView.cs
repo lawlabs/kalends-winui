@@ -376,6 +376,7 @@ public sealed partial class KalendsView : UserControl
         var focusId = _eventButtons.FirstOrDefault(entry => ReferenceEquals(entry.Button, focusedButton)).Event?.Id;
         _eventButtons.Clear();
         _dateTargets.Clear();
+        _dayInfo.Clear();
         if (resetScroll) _scrollOffset = 8 * HourHeight;
         _timeScroll = null;
         _root.Children.Clear();
@@ -423,27 +424,36 @@ public sealed partial class KalendsView : UserControl
 
         if (Mode == KalendsMode.Week || ShowDayHeader)
         {
-            var header = new Grid { Height = 76, Margin = new Thickness(Gutter, 0, 14, 0) };
+            var header = new Grid { Height = 76, Width = days * _columnWidth, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(Gutter, 0, 0, 0) };
             for (int d = 0; d < days; d++)
             {
                 var day = _viewDays[d];
-                header.ColumnDefinitions.Add(new());
+                header.ColumnDefinitions.Add(new() { Width = new GridLength(_columnWidth) });
                 var label = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
-                var weekday = Text(Culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek).ToUpper(Culture), 10, day == DateTime.Today ? "Brand" : "Muted", true);
+                var weekday = Text(Culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek).ToUpper(Culture), 10, day == DateTime.Today ? "Brand" : DayInk(day, "Muted"), true);
                 weekday.HorizontalAlignment = HorizontalAlignment.Center;
                 weekday.TextAlignment = TextAlignment.Center;
                 label.Children.Add(weekday);
                 var number = new Border { Width = 34, Height = 34, HorizontalAlignment = HorizontalAlignment.Center, CornerRadius = new CornerRadius(17), Background = Brush(day == DateTime.Today ? "Brand" : "Surface") };
-                var numberText = Text(day.Day.ToString(Culture), 20, day == DateTime.Today ? "OnBrand" : "Text");
+                var numberText = Text(day.Day.ToString(Culture), 20, day == DateTime.Today ? "OnBrand" : DayInk(day));
                 numberText.HorizontalAlignment = HorizontalAlignment.Center;
                 number.Child = numberText;
                 label.Children.Add(number);
-                Cell(header, ActionButton(label, () => RequestNavigate(day, KalendsMode.Day), day.ToString("D", Culture)), 0, d);
+                if (DayMarker(day) is { Length: > 0 } marker)
+                {
+                    var markerText = Text(marker, 10, DayInk(day), true);
+                    markerText.HorizontalAlignment = HorizontalAlignment.Center;
+                    label.Children.Add(markerText);
+                }
+                var dateTarget = ActionButton(label, () => RequestNavigate(day, KalendsMode.Day), DayTooltip(day));
+                dateTarget.Padding = new Thickness(4, 2, 4, 2);
+                ConfigureDayTarget(dateTarget, day);
+                Cell(header, dateTarget, 0, d);
             }
             _root.Children.Add(header);
         }
 
-        var allDay = new Grid { Padding = new Thickness(Gutter, 4, 14, 7), Background = Brush("Surface"), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 1), MinHeight = 39 };
+        var allDay = new Grid { Width = width, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(Gutter, 4, 0, 7), BorderBrush = Brush("Line"), BorderThickness = new Thickness(0, 1, 0, 1), MinHeight = 39 };
         var allItems = Events.Where(e => e.IsAllDay && KalendsDate.Intersects(e, _rangeStart, _rangeEnd)).OrderBy(e => e.Start).ThenByDescending(e => e.End).ToArray();
         var occupied = new List<bool[]>();
         var spans = new List<(IKalendsEvent Item, int Lane, int Start, int Length)>();
@@ -458,11 +468,19 @@ public sealed partial class KalendsView : UserControl
             spans.Add((item, lane, start, end - start));
         }
         for (int r = 0; r < Math.Max(1, occupied.Count); r++) allDay.RowDefinitions.Add(new() { Height = new GridLength(28) });
+        // Use the same Canvas coordinates as the hourly grid. Event margins must not inset day shading.
+        var allDayBackdrop = new Canvas { Width = width, Height = Math.Max(1, occupied.Count) * 28 + 13, IsHitTestVisible = false };
         for (int d = 0; d < days; d++)
         {
             var day = _viewDays[d];
-            allDay.ColumnDefinitions.Add(new());
-            var stack = new StackPanel { Spacing = 3, Margin = new Thickness(3, 0, 3, 0) };
+            allDay.ColumnDefinitions.Add(new() { Width = new GridLength(_columnWidth) });
+            Position(allDayBackdrop, new Border
+            {
+                Background = DayBackground(day),
+                BorderBrush = Brush("Line"),
+                BorderThickness = new Thickness(1, 0, 0, 0),
+            }, Gutter + d * _columnWidth, 0, _columnWidth, allDayBackdrop.Height);
+            var stack = new StackPanel { Spacing = 3 };
             ConfigureDrop(stack, day);
             stack.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
             stack.DoubleTapped += (_, e) => { RequestEdit(Draft(day, day.AddDays(1), true)); e.Handled = true; };
@@ -476,19 +494,22 @@ public sealed partial class KalendsView : UserControl
             Grid.SetColumnSpan(tile, Math.Max(1, length));
             Cell(allDay, tile, lane, start);
         }
-        Cell(_root, allDay, 1, 0);
+        var allDayHost = new Grid { Width = width, HorizontalAlignment = HorizontalAlignment.Left, Background = Brush("Surface") };
+        allDayHost.Children.Add(allDayBackdrop);
+        allDayHost.Children.Add(allDay);
+        Cell(_root, allDayHost, 1, 0);
         var allLabel = Text(Strings.AllDayLabel, 8, "Muted");
         allLabel.Margin = new Thickness(10, 0, 0, 0);
         allLabel.IsHitTestVisible = false;
         Cell(_root, allLabel, 1, 0);
 
-        _canvas = new Canvas { Width = width, Height = HourHeight * 24, Background = Brush("Surface") };
+        _canvas = new Canvas { Width = width, Height = HourHeight * 24, HorizontalAlignment = HorizontalAlignment.Left, Background = Brush("Surface") };
         for (int d = 0; d < days; d++)
         {
             var day = _viewDays[d];
             var backdrop = new Border
             {
-                Background = Brush(day == DateTime.Today ? "Today" : day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? "Weekend" : "Surface"),
+                Background = DayBackground(day),
                 BorderBrush = Brush("Line"),
                 BorderThickness = new Thickness(1, 0, 0, 0)
             };
@@ -526,7 +547,7 @@ public sealed partial class KalendsView : UserControl
                 Position(_canvas, new Border { Background = Brush("Now"), CornerRadius = new CornerRadius(4), IsHitTestVisible = false }, x - 3, y - 3, 8, 8);
             }
         }
-        _timeScroll = new ScrollViewer { Content = _canvas, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        _timeScroll = new ScrollViewer { Content = _canvas, HorizontalContentAlignment = HorizontalAlignment.Left, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         var scroll = _timeScroll;
         bool ready = false;
         scroll.Loaded += (_, _) => DispatcherQueue.TryEnqueue(() =>
@@ -928,12 +949,13 @@ public sealed partial class KalendsView : UserControl
                 while (day.DayOfWeek != weekDays[c]) day = day.AddDays(1);
                 var panel = new StackPanel { Spacing = 3, Margin = new Thickness(6) };
                 var dateButton = ActionButton(
-                    Text(day.Day == 1 ? day.ToString("d MMM", Culture) : day.Day.ToString(Culture), 12, day == DateTime.Today ? "OnBrand" : day.Month == Date.Month ? "Text" : "Muted", true),
+                    DateLabel(day, Text(day.Day == 1 ? day.ToString("d MMM", Culture) : day.Day.ToString(Culture), 12, day == DateTime.Today ? "OnBrand" : DayInk(day, day.Month == Date.Month ? "Text" : "Muted"), true), onBrand: day == DateTime.Today),
                     () => RequestNavigate(day, KalendsMode.Day),
                     day.ToString("D", Culture));
                 dateButton.HorizontalAlignment = HorizontalAlignment.Left;
                 dateButton.Padding = new Thickness(7, 3, 7, 3);
                 if (day == DateTime.Today) dateButton.Background = Brush("Brand");
+                ConfigureDayTarget(dateButton, day);
                 panel.Children.Add(dateButton);
                 var items = OnDay(day).ToArray();
                 int max = Math.Clamp((int)((ActualHeight - 36) / 6 - 43) / 27, 1, 5);
@@ -947,7 +969,7 @@ public sealed partial class KalendsView : UserControl
                 var border = new Border
                 {
                     Child = panel,
-                    Background = Brush(day == DateTime.Today ? "Today" : day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? "Weekend" : "Surface"),
+                    Background = DayBackground(day),
                     BorderBrush = Brush("Line"),
                     BorderThickness = new Thickness(0, 1, 1, 0)
                 };
@@ -990,13 +1012,15 @@ public sealed partial class KalendsView : UserControl
                 var day = gridStart.AddDays(i);
                 if (day.Month != month) continue;
                 var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                content.Children.Add(Text(day.Day.ToString(Culture), 11, day == DateTime.Today ? "OnBrand" : "Text"));
+                content.Children.Add(DateLabel(day, Text(day.Day.ToString(Culture), 11, day == DateTime.Today ? "OnBrand" : DayInk(day)), markerSize: 8, onBrand: day == DateTime.Today, compact: true));
                 if (OnDay(day).Any())
                     content.Children.Add(new Border { Height = 3, Width = 3, Margin = new Thickness(0, 2, 0, 3), CornerRadius = new CornerRadius(2), Background = Brush(day == DateTime.Today ? "OnBrand" : "Brand"), HorizontalAlignment = HorizontalAlignment.Center });
                 var button = ActionButton(content, () => RequestNavigate(day, KalendsMode.Day), day.ToString("D", Culture));
                 button.Padding = new Thickness(0);
                 button.MinWidth = 0;
                 button.MinHeight = 0;
+                button.Background = DayBackground(day);
+                ConfigureDayTarget(button, day);
                 if (day == DateTime.Today)
                 {
                     var brand = Brush("Brand");
@@ -1025,7 +1049,11 @@ public sealed partial class KalendsView : UserControl
             var items = (IsSearching ? Events.Where(e => e.Start.Date == day).OrderBy(e => e.Start) : OnDay(day)).ToArray();
             if (items.Length == 0) continue;
             var section = new StackPanel { Spacing = 8, Margin = new Thickness(0, 12, 0, 12), HorizontalAlignment = HorizontalAlignment.Stretch };
-            section.Children.Add(Text((day == DateTime.Today ? Strings.Today + " · " : "") + day.ToString("D", Culture), 16, day == DateTime.Today ? "Brand" : "Text", true));
+            var dateHeading = DateLabel(day, Text((day == DateTime.Today ? Strings.Today + " · " : "") + day.ToString("D", Culture), 16, day == DateTime.Today ? "Brand" : DayInk(day), true), markerSize: 11);
+            ToolTipService.SetToolTip(dateHeading, DayTooltip(day));
+            AutomationProperties.SetName(dateHeading, DayTooltip(day).Replace('\n', ' '));
+            AutomationProperties.SetHelpText(dateHeading, DayTooltip(day));
+            section.Children.Add(dateHeading);
             foreach (var item in items)
             {
                 var ink = EventInk(item.Color);

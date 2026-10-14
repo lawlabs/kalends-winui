@@ -91,6 +91,38 @@ Calendar.ShowDayHeader = settings.ShowDayHeader;
 
 The host app can expose this value in its own settings if end users need to choose.
 
+### Day classification
+
+Set `DayInfoProvider` to a synchronous lookup in host-owned data:
+
+```csharp
+var days = new Dictionary<DateOnly, KalendsDayInfo>
+{
+    [new DateOnly(2026, 12, 31)] = new()
+    {
+        Kind = KalendsDayKind.TransferredDayOff,
+        Description = "Day off transferred from another date",
+    },
+};
+Calendar.DayInfoProvider = date => days.TryGetValue(date, out var info) ? info : null;
+Calendar.HighlightWeekends = true;
+Calendar.HighlightHolidays = true;
+Calendar.ShowWorkingDayMarkers = true;
+```
+
+Return the resolved kind for each `DateOnly`, including ordinary working days and
+weekends. Return `null` to fall back to Saturday/Sunday. Lookups are cached for each
+refresh; call `Refresh()` after changing the underlying data. This hook performs
+no storage or network work. `IsShortened` can accompany a working transfer.
+
+Day/week, month, year and agenda use the same classification. Tooltips and
+automation help text include the description; markers complement color in contrast
+themes. Year view uses `*` for shortened days. Override `KalendsWeekendTextBrush`,
+`KalendsDayOffBrush`, `KalendsDayOffTextBrush` and `KalendsWorkingDayTextBrush` for
+host styling, and the corresponding `KalendsStrings` labels and markers for localization.
+The highlight switches only affect presentation. `ShowWeekends` retains its existing
+meaning: hiding the Saturday/Sunday columns in week/month and dates in agenda.
+
 ## Sample
 
 Open `Kalends.slnx` and run `samples/Kalends.WinUI.Sample`.
