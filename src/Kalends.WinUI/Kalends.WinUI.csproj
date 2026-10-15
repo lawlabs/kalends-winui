@@ -17,11 +17,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageId>Kalends.WinUI</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>LawLabs</Authors>
     <Company>LawLabs (ООО «Лаборатория юридических исследований»)</Company>
     <Description>WinUI 3 calendar views with event layout and drag-and-drop. The host owns storage and editing.</Description>
-    <PackageReleaseNotes>Add host-provided day classifications, independent highlight controls, localized day markers and accessible descriptions. Align all-day backgrounds with the hourly grid in Day and Week views.</PackageReleaseNotes>
+    <PackageReleaseNotes>Correct compact event drag previews: preserve card size and pointer anchor, outline the target date, and keep the grabbed segment of multi-day events anchored to the drop date.</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/lawlabs/kalends-winui</PackageProjectUrl>
     <RepositoryUrl>https://github.com/lawlabs/kalends-winui</RepositoryUrl>

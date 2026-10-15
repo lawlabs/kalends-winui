@@ -125,6 +125,12 @@ meaning: hiding the Saturday/Sunday columns in week/month and dates in agenda.
 
 ## Sample
 
+Month and all-day drag previews keep the card's size and the pointer's grab point.
+The destination date has a separate outline. Dragging a later segment of a
+multi-day event moves that segment to the destination while preserving the whole
+event's duration. Release outside a date or press Escape to cancel.
+See [Month drag verification](docs/month-drag-verification.md) for the checks.
+
 Open `Kalends.slnx` and run `samples/Kalends.WinUI.Sample`.
 
 ```powershell

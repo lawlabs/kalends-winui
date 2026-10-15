@@ -131,6 +131,7 @@ public sealed partial class KalendsView : UserControl
     private double _columnWidth;
     private double _scrollOffset = 8 * 64;
     private bool _gesture;
+    private bool _refreshPending;
     private Action? _cancelGesture;
     private DayOfWeek FirstWeekDay => FirstDayOfWeek ?? Culture.DateTimeFormat.FirstDayOfWeek;
     private double Gutter => Metrics.TimeGutterWidth;
@@ -144,7 +145,7 @@ public sealed partial class KalendsView : UserControl
         Content = _root;
         IsTabStop = false;
         SizeChanged += (_, _) => { _resizeTimer.Stop(); _resizeTimer.Start(); };
-        _resizeTimer.Tick += (_, _) => { _resizeTimer.Stop(); if (!_gesture) Refresh(); };
+        _resizeTimer.Tick += (_, _) => { _resizeTimer.Stop(); Refresh(); };
         ActualThemeChanged += (_, _) => Refresh();
         _clock.Tick += (_, _) => { if (!_gesture && Mode is KalendsMode.Day or KalendsMode.Week) Refresh(); };
         Loaded += (_, _) => { _clock.Start(); Refresh(); };
@@ -371,7 +372,9 @@ public sealed partial class KalendsView : UserControl
 
     public void Refresh(bool resetScroll = false)
     {
-        if (_gesture || ActualWidth < 50) return;
+        if (_gesture) { _refreshPending = true; return; }
+        if (ActualWidth < 50) return;
+        _refreshPending = false;
         var focusedButton = XamlRoot != null ? FocusManager.GetFocusedElement(XamlRoot) as Button : null;
         var focusId = _eventButtons.FirstOrDefault(entry => ReferenceEquals(entry.Button, focusedButton)).Event?.Id;
         _eventButtons.Clear();
@@ -722,98 +725,6 @@ public sealed partial class KalendsView : UserControl
         (InputKeyboardSource.GetKeyStateForCurrentThread(key) & CoreVirtualKeyStates.Down) != 0;
 
     private void ConfigureDrop(FrameworkElement target, DateTime day) => _dateTargets.Add((target, day));
-
-    private void ConfigureCompactGesture(EventTile tile, IKalendsEvent item)
-    {
-        Point origin = default;
-        bool active = false, moved = false;
-        DateTime? targetDay = null;
-        Canvas? layer = null;
-        Border? preview = null;
-        void Cleanup()
-        {
-            active = false;
-            _gesture = false;
-            _cancelGesture = null;
-            tile.Opacity = 1;
-            tile.ReleasePointerCaptures();
-            if (layer != null) _root.Children.Remove(layer);
-            layer = null;
-            preview = null;
-        }
-        tile.Press = e =>
-        {
-            origin = e.GetCurrentPoint(_root).Position;
-            active = true;
-            moved = false;
-            targetDay = null;
-            _gesture = true;
-            _cancelGesture = () => { Cleanup(); StatusChanged?.Invoke(this, Strings.DragCancelled); };
-            tile.CapturePointer(e.Pointer);
-            tile.Focus(FocusState.Pointer);
-            e.Handled = true;
-        };
-        tile.Move = e =>
-        {
-            tile.SetCursor(InputSystemCursorShape.SizeAll);
-            if (!active) return;
-            var point = e.GetCurrentPoint(_root).Position;
-            if (!moved && Math.Abs(point.X - origin.X) + Math.Abs(point.Y - origin.Y) < 5) return;
-            moved = true;
-            tile.Opacity = .45;
-            targetDay = null;
-            foreach (var (target, day) in _dateTargets)
-            {
-                var corner = target.TransformToVisual(_root).TransformPoint(new Point());
-                if (new Rect(corner.X, corner.Y, target.ActualWidth, target.ActualHeight).Contains(point))
-                {
-                    targetDay = day;
-                    break;
-                }
-            }
-            if (layer == null)
-            {
-                layer = new Canvas { IsHitTestVisible = false };
-                Grid.SetRowSpan(layer, Math.Max(1, _root.RowDefinitions.Count));
-                preview = new Border
-                {
-                    Background = EventFill(item.Color),
-                    BorderBrush = EventInk(item.Color),
-                    BorderThickness = new Thickness(2),
-                    CornerRadius = new CornerRadius(5),
-                    Padding = new Thickness(10),
-                    Width = 210,
-                    Child = ColoredText(item.Title, EventInk(item.Color), 12, true)
-                };
-                layer.Children.Add(preview);
-                _root.Children.Add(layer);
-            }
-            Canvas.SetLeft(preview!, Math.Clamp(point.X + 12, 0, Math.Max(0, ActualWidth - 210)));
-            Canvas.SetTop(preview!, Math.Max(0, point.Y - 35));
-            StatusChanged?.Invoke(this, targetDay.HasValue
-                ? Strings.FormatDragToDate(targetDay.Value.ToString("d", Culture), Culture)
-                : Strings.DragToDate);
-            e.Handled = true;
-        };
-        tile.Release = e =>
-        {
-            if (!active) return;
-            Cleanup();
-            if (moved && targetDay.HasValue)
-            {
-                var start = targetDay.Value + item.Start.TimeOfDay;
-                if (start != item.Start) RequestTime(item, start, start + (item.End - item.Start));
-            }
-            else if (!moved)
-            {
-                tile.Focus(FocusState.Programmatic);
-                SelectEvent(item);
-            }
-            e.Handled = true;
-        };
-        tile.PointerCanceled += (_, _) => { if (active) Cleanup(); };
-        tile.PointerCaptureLost += (_, _) => { if (active) Cleanup(); };
-    }
 
     private void ConfigureGesture(EventTile tile, IKalendsEvent item, DateTime segmentDay)
     {

@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-15
+
+### Fixed
+
+- Month and all-day event previews retain the original card size and pointer grab offset instead of using a fixed-width floating rectangle.
+- The destination date is outlined separately; preview cards have an opaque surface and are clipped to the calendar bounds.
+- Moving a later segment of a multi-day event preserves that segment under the pointer, along with the event's original time and duration.
+- Dropping outside a date cancels the move. The release position is checked again, and adjacent date boundaries are treated as half-open.
+- Refreshes requested while dragging are applied after pointer capture ends, without rebuilding cards after ordinary clicks.
+
 ## [0.2.0] - 2026-10-14
 
 ### Added
